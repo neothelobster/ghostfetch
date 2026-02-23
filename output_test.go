@@ -15,7 +15,7 @@ func TestFormatOutput(t *testing.T) {
 		}
 		body := []byte("<html>hello</html>")
 		var buf bytes.Buffer
-		formatOutput(&buf, resp, body, false)
+		formatOutput(&buf, resp, body, outputOptions{})
 		if buf.String() != "<html>hello</html>" {
 			t.Fatalf("unexpected output: %q", buf.String())
 		}
@@ -29,7 +29,7 @@ func TestFormatOutput(t *testing.T) {
 		}
 		body := []byte("<html>hello</html>")
 		var buf bytes.Buffer
-		formatOutput(&buf, resp, body, true)
+		formatOutput(&buf, resp, body, outputOptions{asJSON: true})
 
 		var result map[string]interface{}
 		if err := json.Unmarshal(buf.Bytes(), &result); err != nil {

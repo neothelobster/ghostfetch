@@ -29,6 +29,8 @@ func main() {
 		data           string
 		captchaService string
 		captchaKey     string
+		markdown       bool
+		markdownFull   bool
 	)
 
 	rootCmd := &cobra.Command{
@@ -53,6 +55,8 @@ It bypasses bot detection without running a full browser.`,
 				data:           data,
 				captchaService: captchaService,
 				captchaKey:     captchaKey,
+				markdown:       markdown,
+				markdownFull:   markdownFull,
 			})
 		},
 	}
@@ -71,6 +75,8 @@ It bypasses bot detection without running a full browser.`,
 	f.StringVarP(&data, "data", "d", "", "request body")
 	f.StringVar(&captchaService, "captcha-service", "", "captcha service: 2captcha, anticaptcha")
 	f.StringVar(&captchaKey, "captcha-key", "", "captcha service API key")
+	f.BoolVarP(&markdown, "markdown", "m", false, "convert to markdown (reader mode: extracts main content)")
+	f.BoolVar(&markdownFull, "markdown-full", false, "convert full page HTML to markdown")
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -91,6 +97,8 @@ type runOptions struct {
 	data           string
 	captchaService string
 	captchaKey     string
+	markdown       bool
+	markdownFull   bool
 }
 
 func run(rawURL string, opts runOptions) error {
@@ -283,7 +291,12 @@ func run(rawURL string, opts runOptions) error {
 		defer f.Close()
 		writer = f
 	}
-	formatOutput(writer, resp, body, opts.jsonOutput)
+	formatOutput(writer, resp, body, outputOptions{
+		asJSON:       opts.jsonOutput,
+		markdown:     opts.markdown,
+		markdownFull: opts.markdownFull,
+		pageURL:      targetURL,
+	})
 
 	return nil
 }
