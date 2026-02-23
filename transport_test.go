@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 )
@@ -40,6 +41,31 @@ func TestFetchBasic(t *testing.T) {
 		}
 		if len(body) == 0 {
 			t.Fatal("expected non-empty body")
+		}
+	})
+}
+
+func TestFetchPOST(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+	t.Run("POST with body", func(t *testing.T) {
+		profile := getProfile("chrome")
+		tr, err := newTransport(profile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		resp, body, err := doFetchWithBody(ctx, tr, profile, "POST", "https://httpbin.org/post", nil, nil, "hello=world")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.StatusCode != 200 {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+		if !strings.Contains(string(body), "hello") {
+			t.Fatalf("expected 'hello' in response, got: %s", body)
 		}
 	})
 }

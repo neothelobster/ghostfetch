@@ -151,7 +151,13 @@ func run(rawURL string, opts runOptions) error {
 	}
 
 	// 9. Perform the fetch.
-	resp, body, err := doFetch(ctx, tr, profile, opts.method, targetURL, extraHeaders, cookies)
+	var resp *http.Response
+	var body []byte
+	if opts.data != "" {
+		resp, body, err = doFetchWithBody(ctx, tr, profile, opts.method, targetURL, extraHeaders, cookies, opts.data)
+	} else {
+		resp, body, err = doFetch(ctx, tr, profile, opts.method, targetURL, extraHeaders, cookies)
+	}
 	if err != nil {
 		return fmt.Errorf("fetch failed: %w", err)
 	}

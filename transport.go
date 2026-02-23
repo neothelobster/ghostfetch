@@ -84,8 +84,20 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 // doFetch performs an HTTP request using the given transport and profile.
+// It is a convenience wrapper around doFetchWithBody with an empty body.
 func doFetch(ctx context.Context, tr http.RoundTripper, profile BrowserProfile, method, url string, extraHeaders [][2]string, cookies []*http.Cookie) (*http.Response, []byte, error) {
-	req, err := http.NewRequestWithContext(ctx, method, url, nil)
+	return doFetchWithBody(ctx, tr, profile, method, url, extraHeaders, cookies, "")
+}
+
+// doFetchWithBody performs an HTTP request using the given transport and profile.
+// If body is non-empty, it is sent as the request body (useful for POST/PUT requests).
+func doFetchWithBody(ctx context.Context, tr http.RoundTripper, profile BrowserProfile, method, targetURL string, extraHeaders [][2]string, cookies []*http.Cookie, body string) (*http.Response, []byte, error) {
+	var reqBody io.Reader
+	if body != "" {
+		reqBody = strings.NewReader(body)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, targetURL, reqBody)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -130,10 +142,10 @@ func doFetch(ctx context.Context, tr http.RoundTripper, profile BrowserProfile, 
 		reader = brotli.NewReader(resp.Body)
 	}
 
-	body, err := io.ReadAll(reader)
+	respBody, err := io.ReadAll(reader)
 	if err != nil {
 		return resp, nil, fmt.Errorf("read body failed: %w", err)
 	}
 
-	return resp, body, nil
+	return resp, respBody, nil
 }
