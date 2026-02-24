@@ -27,8 +27,10 @@ var (
 	flagCaptchaKey     string
 	flagMarkdown       bool
 	flagMarkdownFull   bool
-	flagRaw            bool
-	flagMaxParallel    int
+	flagRaw              bool
+	flagMaxParallel      int
+	searchEngineName     string
+	searchMaxResults     int
 )
 
 func main() {
@@ -97,18 +99,18 @@ func newFetchCmd() *cobra.Command {
 	return cmd
 }
 
-// newSearchCmd creates the "search" subcommand (placeholder).
+// newSearchCmd creates the "search" subcommand.
 func newSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "search <query>",
 		Short: "Search the web",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return fmt.Errorf("search not yet implemented")
+			return runSearch(args[0], searchEngineName, searchMaxResults)
 		},
 	}
-	cmd.Flags().StringP("engine", "e", "google", "search engine to use")
-	cmd.Flags().IntP("results", "n", 10, "number of results")
+	cmd.Flags().StringVarP(&searchEngineName, "engine", "e", "google", "search engine to use")
+	cmd.Flags().IntVarP(&searchMaxResults, "results", "n", 10, "number of results")
 	return cmd
 }
 
