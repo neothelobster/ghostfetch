@@ -174,11 +174,6 @@ func runSingleFetch(rawURL string) error {
 	return nil
 }
 
-// runParallelFetch is a placeholder for parallel fetching (Task 3).
-func runParallelFetch(urls []string) error {
-	return fmt.Errorf("parallel fetch not yet implemented")
-}
-
 // parseHeaders splits raw header strings on the first ":" into key-value pairs.
 // Entries without a colon are skipped.
 func parseHeaders(raw []string) [][2]string {
