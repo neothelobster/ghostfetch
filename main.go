@@ -110,7 +110,7 @@ func newSearchCmd() *cobra.Command {
 			return runSearch(args[0], searchEngineName, searchMaxResults)
 		},
 	}
-	cmd.Flags().StringVarP(&searchEngineName, "engine", "e", "google", "search engine to use")
+	cmd.Flags().StringVarP(&searchEngineName, "engine", "e", "duckduckgo", "search engine: duckduckgo, bing, brave, google")
 	cmd.Flags().IntVarP(&searchMaxResults, "results", "n", 10, "number of results")
 	return cmd
 }
