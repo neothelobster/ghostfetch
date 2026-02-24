@@ -1,15 +1,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -102,186 +98,25 @@ type runOptions struct {
 }
 
 func run(rawURL string, opts runOptions) error {
-	// 1. Parse the URL (prepend "https://" if no scheme).
-	targetURL := rawURL
-	if !strings.Contains(targetURL, "://") {
-		targetURL = "https://" + targetURL
-	}
-
-	// 2. Parse the timeout duration.
-	dur, err := time.ParseDuration(opts.timeout)
+	// Delegate the full fetch pipeline to fetchOne().
+	result, err := fetchOne(fetchOptions{
+		url:            rawURL,
+		browser:        opts.browser,
+		headers:        opts.headers,
+		timeout:        opts.timeout,
+		noCookies:      opts.noCookies,
+		cookieJarPath:  opts.cookieJarPath,
+		verbose:        opts.verbose,
+		method:         opts.method,
+		data:           opts.data,
+		captchaService: opts.captchaService,
+		captchaKey:     opts.captchaKey,
+	})
 	if err != nil {
-		return fmt.Errorf("invalid timeout %q: %w", opts.timeout, err)
+		return err
 	}
 
-	// 3. Create context with timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), dur)
-	defer cancel()
-
-	// 4. Get browser profile.
-	profile := getProfile(opts.browser)
-	if opts.verbose {
-		fmt.Fprintf(os.Stderr, "[*] Using %s profile\n", profile.Name)
-	}
-
-	// 5. Create transport.
-	tr, err := newTransport(profile)
-	if err != nil {
-		return fmt.Errorf("failed to create transport: %w", err)
-	}
-
-	// 6. Load cookie jar if cookies are enabled.
-	var jar *PersistentJar
-	if !opts.noCookies {
-		jarPath := opts.cookieJarPath
-		if jarPath == "" {
-			jarPath = defaultCookieJarPath()
-		}
-		jar = newPersistentJar(jarPath)
-		if err := jar.Load(); err != nil {
-			return fmt.Errorf("failed to load cookie jar: %w", err)
-		}
-	}
-
-	// 7. Parse custom headers.
-	extraHeaders := parseHeaders(opts.headers)
-
-	// 8. Build initial cookies from jar.
-	var cookies []*http.Cookie
-	if jar != nil {
-		if u, err := url.Parse(targetURL); err == nil {
-			cookies = jar.Cookies(u)
-		}
-	}
-
-	if opts.verbose {
-		fmt.Fprintf(os.Stderr, "[*] Fetching %s\n", targetURL)
-	}
-
-	// 9. Perform the fetch.
-	var resp *http.Response
-	var body []byte
-	if opts.data != "" {
-		resp, body, err = doFetchWithBody(ctx, tr, profile, opts.method, targetURL, extraHeaders, cookies, opts.data)
-	} else {
-		resp, body, err = doFetch(ctx, tr, profile, opts.method, targetURL, extraHeaders, cookies)
-	}
-	if err != nil {
-		return fmt.Errorf("fetch failed: %w", err)
-	}
-
-	// 10. Detect challenges.
-	challenge := detectChallenge(resp, body)
-	if opts.verbose {
-		fmt.Fprintf(os.Stderr, "[*] Challenge: %s\n", challenge)
-	}
-
-	// 11. Handle JS challenge.
-	if challenge == ChallengeJS {
-		script := extractScriptContent(body)
-		if script != "" {
-			solver := newJSSolver(targetURL)
-			result, err := solver.Solve(script)
-			if err != nil {
-				if opts.verbose {
-					fmt.Fprintf(os.Stderr, "[*] JS solver error: %v\n", err)
-				}
-			} else if result.CookieName != "" {
-				// Add the solved cookie and retry.
-				solvedCookie := &http.Cookie{
-					Name:  result.CookieName,
-					Value: result.CookieValue,
-				}
-				cookies = append(cookies, solvedCookie)
-
-				// Store solved cookie in jar.
-				if jar != nil {
-					if u, err := url.Parse(targetURL); err == nil {
-						jar.SetCookies(u, []*http.Cookie{solvedCookie})
-					}
-				}
-
-				if opts.verbose {
-					fmt.Fprintf(os.Stderr, "[*] Retrying with solved JS cookie: %s\n", result.CookieName)
-				}
-				resp, body, err = doFetch(ctx, tr, profile, opts.method, targetURL, extraHeaders, cookies)
-				if err != nil {
-					return fmt.Errorf("retry fetch failed: %w", err)
-				}
-			}
-		}
-	}
-
-	// 12. Handle captcha challenge.
-	if challenge == ChallengeCaptcha {
-		sitekey, captchaType := extractSitekey(body)
-		if sitekey != "" {
-			// Resolve captcha service and key from flags or environment.
-			svc := opts.captchaService
-			if svc == "" {
-				svc = os.Getenv("BRWOSER_CAPTCHA_SERVICE")
-			}
-			key := opts.captchaKey
-			if key == "" {
-				key = os.Getenv("BRWOSER_CAPTCHA_KEY")
-			}
-
-			if svc == "" || key == "" {
-				if opts.verbose {
-					fmt.Fprintf(os.Stderr, "[*] Captcha detected but no service/key configured\n")
-				}
-			} else {
-				captchaSolver, err := newCaptchaSolver(svc, key)
-				if err != nil {
-					return fmt.Errorf("captcha solver init failed: %w", err)
-				}
-				if opts.verbose {
-					fmt.Fprintf(os.Stderr, "[*] Solving %s captcha via %s\n", captchaType, svc)
-				}
-				token, err := captchaSolver.Solve(ctx, sitekey, targetURL, captchaType)
-				if err != nil {
-					return fmt.Errorf("captcha solve failed: %w", err)
-				}
-				if opts.verbose {
-					fmt.Fprintf(os.Stderr, "[*] Captcha solved, retrying fetch\n")
-				}
-				// Add captcha token as cookie and retry.
-				solvedCookie := &http.Cookie{
-					Name:  "cf_clearance",
-					Value: token,
-				}
-				cookies = append(cookies, solvedCookie)
-
-				if jar != nil {
-					if u, err := url.Parse(targetURL); err == nil {
-						jar.SetCookies(u, []*http.Cookie{solvedCookie})
-					}
-				}
-
-				resp, body, err = doFetch(ctx, tr, profile, opts.method, targetURL, extraHeaders, cookies)
-				if err != nil {
-					return fmt.Errorf("retry fetch after captcha failed: %w", err)
-				}
-			}
-		}
-	}
-
-	// 13. Save cookies if jar is set.
-	if jar != nil {
-		// Store response cookies in the jar.
-		if resp != nil && resp.Request != nil && resp.Request.URL != nil {
-			if respCookies := resp.Cookies(); len(respCookies) > 0 {
-				jar.SetCookies(resp.Request.URL, respCookies)
-			}
-		}
-		if err := jar.Save(); err != nil {
-			if opts.verbose {
-				fmt.Fprintf(os.Stderr, "[*] Warning: failed to save cookies: %v\n", err)
-			}
-		}
-	}
-
-	// 14. Write output.
+	// Write output.
 	writer := os.Stdout
 	if opts.outputFile != "" {
 		f, err := os.Create(opts.outputFile)
@@ -291,11 +126,11 @@ func run(rawURL string, opts runOptions) error {
 		defer f.Close()
 		writer = f
 	}
-	formatOutput(writer, resp, body, outputOptions{
+	formatOutput(writer, result.resp, result.Body, outputOptions{
 		asJSON:       opts.jsonOutput,
 		markdown:     opts.markdown,
 		markdownFull: opts.markdownFull,
-		pageURL:      targetURL,
+		pageURL:      result.URL,
 	})
 
 	return nil
