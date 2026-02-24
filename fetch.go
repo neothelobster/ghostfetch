@@ -31,7 +31,9 @@ type fetchResult struct {
 	StatusCode int
 	Headers    http.Header
 	Body       []byte
-	Error      error
+	// Error is set by parallel fetch callers, not by fetchOne().
+	// fetchOne returns errors via its second return value.
+	Error error
 	// resp is the original *http.Response, retained so callers like run()
 	// can pass it to formatOutput without reconstructing one.
 	resp *http.Response
@@ -54,7 +56,7 @@ func fetchOne(opts fetchOptions) (*fetchResult, error) {
 	}
 	dur, err := time.ParseDuration(timeout)
 	if err != nil {
-		return nil, fmt.Errorf("invalid timeout %q: %w", opts.timeout, err)
+		return nil, fmt.Errorf("invalid timeout %q: %w", timeout, err)
 	}
 
 	// 3. Create context with timeout.
