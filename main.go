@@ -31,6 +31,7 @@ var (
 	flagMaxParallel      int
 	searchEngineName     string
 	searchMaxResults     int
+	linksFilter          string
 )
 
 func main() {
@@ -114,17 +115,17 @@ func newSearchCmd() *cobra.Command {
 	return cmd
 }
 
-// newLinksCmd creates the "links" subcommand (placeholder).
+// newLinksCmd creates the "links" subcommand.
 func newLinksCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "links <url>",
 		Short: "Extract links from a page",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return fmt.Errorf("links not yet implemented")
+			return runLinks(args[0], linksFilter)
 		},
 	}
-	cmd.Flags().StringP("filter", "f", "", "filter links by pattern")
+	cmd.Flags().StringVarP(&linksFilter, "filter", "f", "", "filter links by regex pattern")
 	return cmd
 }
 
