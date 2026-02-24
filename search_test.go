@@ -42,6 +42,117 @@ func TestParseGoogleResults(t *testing.T) {
 	}
 }
 
+func TestParseBingResults(t *testing.T) {
+	htmlBody := `<html><body>
+<li class="b_algo"><h2><a href="https://example.com/bing1">Bing First</a></h2>
+<div class="b_caption"><p>Bing first snippet</p></div></li>
+<li class="b_algo"><h2><a href="https://example.com/bing2">Bing Second</a></h2>
+<div class="b_caption"><p>Bing second snippet</p></div></li>
+</body></html>`
+
+	results := parseBingResults([]byte(htmlBody))
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+
+	// First result.
+	if results[0].Title != "Bing First" {
+		t.Errorf("result[0].Title = %q, want %q", results[0].Title, "Bing First")
+	}
+	if results[0].URL != "https://example.com/bing1" {
+		t.Errorf("result[0].URL = %q, want %q", results[0].URL, "https://example.com/bing1")
+	}
+	if results[0].Snippet != "Bing first snippet" {
+		t.Errorf("result[0].Snippet = %q, want %q", results[0].Snippet, "Bing first snippet")
+	}
+
+	// Second result.
+	if results[1].Title != "Bing Second" {
+		t.Errorf("result[1].Title = %q, want %q", results[1].Title, "Bing Second")
+	}
+	if results[1].URL != "https://example.com/bing2" {
+		t.Errorf("result[1].URL = %q, want %q", results[1].URL, "https://example.com/bing2")
+	}
+	if results[1].Snippet != "Bing second snippet" {
+		t.Errorf("result[1].Snippet = %q, want %q", results[1].Snippet, "Bing second snippet")
+	}
+}
+
+func TestParseDuckDuckGoResults(t *testing.T) {
+	htmlBody := `<html><body>
+<div class="result"><h2 class="result__title"><a class="result__a" href="https://example.com/ddg1">DDG First</a></h2>
+<a class="result__snippet">DDG first snippet</a></div>
+<div class="result"><h2 class="result__title"><a class="result__a" href="https://example.com/ddg2">DDG Second</a></h2>
+<a class="result__snippet">DDG second snippet</a></div>
+</body></html>`
+
+	results := parseDuckDuckGoResults([]byte(htmlBody))
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+
+	// First result.
+	if results[0].Title != "DDG First" {
+		t.Errorf("result[0].Title = %q, want %q", results[0].Title, "DDG First")
+	}
+	if results[0].URL != "https://example.com/ddg1" {
+		t.Errorf("result[0].URL = %q, want %q", results[0].URL, "https://example.com/ddg1")
+	}
+	if results[0].Snippet != "DDG first snippet" {
+		t.Errorf("result[0].Snippet = %q, want %q", results[0].Snippet, "DDG first snippet")
+	}
+
+	// Second result.
+	if results[1].Title != "DDG Second" {
+		t.Errorf("result[1].Title = %q, want %q", results[1].Title, "DDG Second")
+	}
+	if results[1].URL != "https://example.com/ddg2" {
+		t.Errorf("result[1].URL = %q, want %q", results[1].URL, "https://example.com/ddg2")
+	}
+	if results[1].Snippet != "DDG second snippet" {
+		t.Errorf("result[1].Snippet = %q, want %q", results[1].Snippet, "DDG second snippet")
+	}
+}
+
+func TestParseBraveResults(t *testing.T) {
+	htmlBody := `<html><body>
+<div class="snippet" data-type="web"><div class="snippet-title"><a href="https://example.com/brave1">Brave First</a></div>
+<div class="snippet-description">Brave first snippet</div></div>
+<div class="snippet" data-type="web"><div class="snippet-title"><a href="https://example.com/brave2">Brave Second</a></div>
+<div class="snippet-description">Brave second snippet</div></div>
+</body></html>`
+
+	results := parseBraveResults([]byte(htmlBody))
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+
+	// First result.
+	if results[0].Title != "Brave First" {
+		t.Errorf("result[0].Title = %q, want %q", results[0].Title, "Brave First")
+	}
+	if results[0].URL != "https://example.com/brave1" {
+		t.Errorf("result[0].URL = %q, want %q", results[0].URL, "https://example.com/brave1")
+	}
+	if results[0].Snippet != "Brave first snippet" {
+		t.Errorf("result[0].Snippet = %q, want %q", results[0].Snippet, "Brave first snippet")
+	}
+
+	// Second result.
+	if results[1].Title != "Brave Second" {
+		t.Errorf("result[1].Title = %q, want %q", results[1].Title, "Brave Second")
+	}
+	if results[1].URL != "https://example.com/brave2" {
+		t.Errorf("result[1].URL = %q, want %q", results[1].URL, "https://example.com/brave2")
+	}
+	if results[1].Snippet != "Brave second snippet" {
+		t.Errorf("result[1].Snippet = %q, want %q", results[1].Snippet, "Brave second snippet")
+	}
+}
+
 func TestFormatSearchResults(t *testing.T) {
 	results := []searchResult{
 		{Title: "First", URL: "https://example.com/1", Snippet: "Snippet one"},
