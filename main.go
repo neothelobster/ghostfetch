@@ -10,107 +10,145 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func main() {
-	var (
-		outputFile     string
-		headers        []string
-		browser        string
-		jsonOutput     bool
-		followRedirs   bool
-		cookieJarPath  string
-		noCookies      bool
-		timeout        string
-		verbose        bool
-		method         string
-		data           string
-		captchaService string
-		captchaKey     string
-		markdown       bool
-		markdownFull   bool
-	)
+// Package-level flag variables shared across subcommands.
+var (
+	flagOutputFile     string
+	flagHeaders        []string
+	flagBrowser        string
+	flagJSONOutput     bool
+	flagFollowRedirs   bool
+	flagCookieJarPath  string
+	flagNoCookies      bool
+	flagTimeout        string
+	flagVerbose        bool
+	flagMethod         string
+	flagData           string
+	flagCaptchaService string
+	flagCaptchaKey     string
+	flagMarkdown       bool
+	flagMarkdownFull   bool
+	flagRaw            bool
+	flagMaxParallel    int
+)
 
+func main() {
 	rootCmd := &cobra.Command{
-		Use:   "brwoser [flags] <url>",
+		Use:   "brwoser [flags] [command]",
 		Short: "Fetch web pages like curl, but bypass bot detection",
 		Long: `brwoser fetches web pages with browser-like TLS fingerprints,
 solves JavaScript challenges, and handles captchas via external services.
 It bypasses bot detection without running a full browser.`,
-		Args: cobra.ExactArgs(1),
+		TraverseChildren: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(args[0], runOptions{
-				outputFile:     outputFile,
-				headers:        headers,
-				browser:        browser,
-				jsonOutput:     jsonOutput,
-				followRedirs:   followRedirs,
-				cookieJarPath:  cookieJarPath,
-				noCookies:      noCookies,
-				timeout:        timeout,
-				verbose:        verbose,
-				method:         method,
-				data:           data,
-				captchaService: captchaService,
-				captchaKey:     captchaKey,
-				markdown:       markdown,
-				markdownFull:   markdownFull,
-			})
+			// Bare `brwoser <url>` is a shortcut for `brwoser fetch <url>`.
+			if len(args) > 0 && looksLikeURL(args[0]) {
+				return runFetch(args)
+			}
+			return cmd.Help()
 		},
 	}
 
-	f := rootCmd.Flags()
-	f.StringVarP(&outputFile, "output", "o", "", "write response to file")
-	f.StringArrayVarP(&headers, "header", "H", nil, "add custom header (repeatable)")
-	f.StringVarP(&browser, "browser", "b", "chrome", "browser to impersonate: chrome, firefox")
-	f.BoolVarP(&jsonOutput, "json", "j", false, "output JSON with body, status, headers, cookies")
-	f.BoolVarP(&followRedirs, "follow", "L", true, "follow redirects (up to 10)")
-	f.StringVarP(&cookieJarPath, "cookie-jar", "c", "", "cookie jar file path (default: ~/.brwoser/cookies.json)")
-	f.BoolVar(&noCookies, "no-cookies", false, "don't load/save cookies")
-	f.StringVarP(&timeout, "timeout", "t", "30s", "request timeout")
-	f.BoolVarP(&verbose, "verbose", "v", false, "print request/response details to stderr")
-	f.StringVarP(&method, "method", "X", "GET", "HTTP method")
-	f.StringVarP(&data, "data", "d", "", "request body")
-	f.StringVar(&captchaService, "captcha-service", "", "captcha service: 2captcha, anticaptcha")
-	f.StringVar(&captchaKey, "captcha-key", "", "captcha service API key")
-	f.BoolVarP(&markdown, "markdown", "m", false, "convert to markdown (reader mode: extracts main content)")
-	f.BoolVar(&markdownFull, "markdown-full", false, "convert full page HTML to markdown")
+	// Persistent flags — shared across all subcommands.
+	pf := rootCmd.PersistentFlags()
+	pf.StringVarP(&flagOutputFile, "output", "o", "", "write response to file")
+	pf.StringArrayVarP(&flagHeaders, "header", "H", nil, "add custom header (repeatable)")
+	pf.StringVarP(&flagBrowser, "browser", "b", "chrome", "browser to impersonate: chrome, firefox")
+	pf.BoolVarP(&flagJSONOutput, "json", "j", false, "output JSON with body, status, headers, cookies")
+	pf.BoolVarP(&flagFollowRedirs, "follow", "L", true, "follow redirects (up to 10)")
+	pf.StringVarP(&flagCookieJarPath, "cookie-jar", "c", "", "cookie jar file path (default: ~/.brwoser/cookies.json)")
+	pf.BoolVar(&flagNoCookies, "no-cookies", false, "don't load/save cookies")
+	pf.StringVarP(&flagTimeout, "timeout", "t", "30s", "request timeout")
+	pf.BoolVarP(&flagVerbose, "verbose", "v", false, "print request/response details to stderr")
+	pf.StringVarP(&flagMethod, "method", "X", "GET", "HTTP method")
+	pf.StringVarP(&flagData, "data", "d", "", "request body")
+	pf.StringVar(&flagCaptchaService, "captcha-service", "", "captcha service: 2captcha, anticaptcha")
+	pf.StringVar(&flagCaptchaKey, "captcha-key", "", "captcha service API key")
+	pf.BoolVarP(&flagMarkdown, "markdown", "m", false, "convert to markdown (reader mode: extracts main content)")
+	pf.BoolVar(&flagMarkdownFull, "markdown-full", false, "convert full page HTML to markdown")
+	pf.BoolVar(&flagRaw, "raw", false, "output raw HTML without any processing")
+
+	// Subcommands.
+	rootCmd.AddCommand(newFetchCmd())
+	rootCmd.AddCommand(newSearchCmd())
+	rootCmd.AddCommand(newLinksCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
 
-type runOptions struct {
-	outputFile     string
-	headers        []string
-	browser        string
-	jsonOutput     bool
-	followRedirs   bool
-	cookieJarPath  string
-	noCookies      bool
-	timeout        string
-	verbose        bool
-	method         string
-	data           string
-	captchaService string
-	captchaKey     string
-	markdown       bool
-	markdownFull   bool
+// looksLikeURL returns true if the argument looks like a URL rather than
+// a subcommand name. It checks for "://" or the presence of a dot.
+func looksLikeURL(s string) bool {
+	return strings.Contains(s, "://") || strings.Contains(s, ".")
 }
 
-func run(rawURL string, opts runOptions) error {
-	// Delegate the full fetch pipeline to fetchOne().
+// newFetchCmd creates the "fetch" subcommand.
+func newFetchCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "fetch <url> [url2] [url3...]",
+		Short: "Fetch one or more URLs",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runFetch(args)
+		},
+	}
+	cmd.Flags().IntVarP(&flagMaxParallel, "max-parallel", "p", 5, "max parallel fetches")
+	return cmd
+}
+
+// newSearchCmd creates the "search" subcommand (placeholder).
+func newSearchCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "search <query>",
+		Short: "Search the web",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return fmt.Errorf("search not yet implemented")
+		},
+	}
+	cmd.Flags().StringP("engine", "e", "google", "search engine to use")
+	cmd.Flags().IntP("results", "n", 10, "number of results")
+	return cmd
+}
+
+// newLinksCmd creates the "links" subcommand (placeholder).
+func newLinksCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "links <url>",
+		Short: "Extract links from a page",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return fmt.Errorf("links not yet implemented")
+		},
+	}
+	cmd.Flags().StringP("filter", "f", "", "filter links by pattern")
+	return cmd
+}
+
+// runFetch dispatches to runSingleFetch for a single URL or
+// runParallelFetch for multiple URLs.
+func runFetch(urls []string) error {
+	if len(urls) == 1 {
+		return runSingleFetch(urls[0])
+	}
+	return runParallelFetch(urls)
+}
+
+// runSingleFetch fetches a single URL and writes the formatted output.
+func runSingleFetch(rawURL string) error {
 	result, err := fetchOne(fetchOptions{
 		url:            rawURL,
-		browser:        opts.browser,
-		headers:        opts.headers,
-		timeout:        opts.timeout,
-		noCookies:      opts.noCookies,
-		cookieJarPath:  opts.cookieJarPath,
-		verbose:        opts.verbose,
-		method:         opts.method,
-		data:           opts.data,
-		captchaService: opts.captchaService,
-		captchaKey:     opts.captchaKey,
+		browser:        flagBrowser,
+		headers:        flagHeaders,
+		timeout:        flagTimeout,
+		noCookies:      flagNoCookies,
+		cookieJarPath:  flagCookieJarPath,
+		verbose:        flagVerbose,
+		method:         flagMethod,
+		data:           flagData,
+		captchaService: flagCaptchaService,
+		captchaKey:     flagCaptchaKey,
 	})
 	if err != nil {
 		return err
@@ -118,8 +156,8 @@ func run(rawURL string, opts runOptions) error {
 
 	// Write output.
 	writer := os.Stdout
-	if opts.outputFile != "" {
-		f, err := os.Create(opts.outputFile)
+	if flagOutputFile != "" {
+		f, err := os.Create(flagOutputFile)
 		if err != nil {
 			return fmt.Errorf("failed to create output file: %w", err)
 		}
@@ -127,13 +165,18 @@ func run(rawURL string, opts runOptions) error {
 		writer = f
 	}
 	formatOutput(writer, result.resp, result.Body, outputOptions{
-		asJSON:       opts.jsonOutput,
-		markdown:     opts.markdown,
-		markdownFull: opts.markdownFull,
+		asJSON:       flagJSONOutput,
+		markdown:     flagMarkdown,
+		markdownFull: flagMarkdownFull,
 		pageURL:      result.URL,
 	})
 
 	return nil
+}
+
+// runParallelFetch is a placeholder for parallel fetching (Task 3).
+func runParallelFetch(urls []string) error {
+	return fmt.Errorf("parallel fetch not yet implemented")
 }
 
 // parseHeaders splits raw header strings on the first ":" into key-value pairs.
