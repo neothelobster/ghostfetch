@@ -336,51 +336,35 @@ func parseBraveResults(body []byte) []searchResult {
 }
 
 // extractBraveResult extracts a single search result from a <div class="snippet" data-type="web"> block.
+// Brave wraps the result link in <a class="... l1"> with <div class="title search-snippet-title ..."> inside.
+// The description lives in <div class="content ... line-clamp-dynamic ..."> inside <div class="generic-snippet">.
 func extractBraveResult(n *html.Node) (searchResult, bool) {
 	var r searchResult
 
-	// Find <a> inside .snippet-title for URL and title.
-	var findTitle func(*html.Node)
-	findTitle = func(node *html.Node) {
-		if node.Type == html.ElementNode && node.Data == "div" && hasClass(node, "snippet-title") {
-			// Find <a> inside.
-			var findA func(*html.Node)
-			findA = func(inner *html.Node) {
-				if inner.Type == html.ElementNode && inner.Data == "a" {
-					href := getAttr(inner, "href")
-					if strings.HasPrefix(href, "http") {
-						r.URL = href
-						r.Title = textContent(inner)
-					}
-					return
-				}
-				for c := inner.FirstChild; c != nil; c = c.NextSibling {
-					findA(c)
+	var walk func(*html.Node)
+	walk = func(node *html.Node) {
+		if node.Type == html.ElementNode {
+			// URL: first <a> with an http href inside the snippet block.
+			if node.Data == "a" && r.URL == "" {
+				href := getAttr(node, "href")
+				if strings.HasPrefix(href, "http") {
+					r.URL = href
 				}
 			}
-			findA(node)
-			return
-		}
-		for c := node.FirstChild; c != nil; c = c.NextSibling {
-			findTitle(c)
-		}
-	}
-	findTitle(n)
-
-	// Find snippet from .snippet-description.
-	var findSnippet func(*html.Node) string
-	findSnippet = func(node *html.Node) string {
-		if node.Type == html.ElementNode && hasClass(node, "snippet-description") {
-			return textContent(node)
-		}
-		for c := node.FirstChild; c != nil; c = c.NextSibling {
-			if s := findSnippet(c); s != "" {
-				return s
+			// Title: <div class="title search-snippet-title ...">
+			if node.Data == "div" && hasClass(node, "search-snippet-title") && r.Title == "" {
+				r.Title = strings.TrimSpace(textContent(node))
+			}
+			// Description: <div class="content ... line-clamp-dynamic ..."> inside generic-snippet.
+			if hasClass(node, "line-clamp-dynamic") && r.Snippet == "" {
+				r.Snippet = strings.TrimSpace(textContent(node))
 			}
 		}
-		return ""
+		for c := node.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
 	}
-	r.Snippet = findSnippet(n)
+	walk(n)
 
 	if r.URL == "" && r.Title == "" {
 		return r, false

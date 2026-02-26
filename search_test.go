@@ -117,11 +117,19 @@ func TestParseDuckDuckGoResults(t *testing.T) {
 }
 
 func TestParseBraveResults(t *testing.T) {
+	// Matches real Brave HTML structure: <a class="l1"> wraps <div class="title search-snippet-title">,
+	// and description is in <div class="content line-clamp-dynamic"> inside <div class="generic-snippet">.
 	htmlBody := `<html><body>
-<div class="snippet" data-type="web"><div class="snippet-title"><a href="https://example.com/brave1">Brave First</a></div>
-<div class="snippet-description">Brave first snippet</div></div>
-<div class="snippet" data-type="web"><div class="snippet-title"><a href="https://example.com/brave2">Brave Second</a></div>
-<div class="snippet-description">Brave second snippet</div></div>
+<div class="snippet svelte-jmfu5f" data-type="web"><div class="result-content svelte-1rq4ngz">
+<a href="https://example.com/brave1" class="svelte-14r20fy l1">
+<div class="title search-snippet-title line-clamp-1 svelte-14r20fy">Brave First</div></a>
+<div class="generic-snippet svelte-1cwdgg3"><div class="content desktop-default-regular t-primary line-clamp-dynamic svelte-1cwdgg3">Brave first snippet</div></div>
+</div></div>
+<div class="snippet svelte-jmfu5f" data-type="web"><div class="result-content svelte-1rq4ngz">
+<a href="https://example.com/brave2" class="svelte-14r20fy l1">
+<div class="title search-snippet-title line-clamp-1 svelte-14r20fy">Brave Second</div></a>
+<div class="generic-snippet svelte-1cwdgg3"><div class="content desktop-default-regular t-primary line-clamp-dynamic svelte-1cwdgg3">Brave second snippet</div></div>
+</div></div>
 </body></html>`
 
 	results := parseBraveResults([]byte(htmlBody))

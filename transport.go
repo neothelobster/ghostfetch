@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
 	"crypto/tls"
@@ -131,20 +132,32 @@ func doFetchWithBody(ctx context.Context, tr http.RoundTripper, profile BrowserP
 	}
 	defer resp.Body.Close()
 
-	var reader io.Reader = resp.Body
-	switch strings.ToLower(resp.Header.Get("Content-Encoding")) {
-	case "gzip":
-		reader, err = gzip.NewReader(resp.Body)
-		if err != nil {
-			return resp, nil, fmt.Errorf("gzip decode failed: %w", err)
-		}
-	case "br":
-		reader = brotli.NewReader(resp.Body)
-	}
-
-	respBody, err := io.ReadAll(reader)
+	// Read the raw body bytes first, then decompress.
+	// Buffering first allows fallback to raw bytes if decompression fails.
+	rawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return resp, nil, fmt.Errorf("read body failed: %w", err)
+	}
+
+	respBody := rawBody
+	switch strings.ToLower(resp.Header.Get("Content-Encoding")) {
+	case "gzip":
+		gr, err := gzip.NewReader(bytes.NewReader(rawBody))
+		if err == nil {
+			if decoded, err := io.ReadAll(gr); err == nil {
+				respBody = decoded
+			}
+		}
+	case "br":
+		br := brotli.NewReader(bytes.NewReader(rawBody))
+		decoded, err := io.ReadAll(br)
+		if err == nil {
+			respBody = decoded
+		} else if len(decoded) > 0 {
+			// Brotli "excessive input" can occur with trailing data after
+			// the compressed stream. Use partial result if we got any data.
+			respBody = decoded
+		}
 	}
 
 	return resp, respBody, nil
