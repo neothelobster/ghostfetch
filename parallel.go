@@ -29,17 +29,11 @@ func runParallelFetch(urls []string) error {
 			defer func() { <-sem }() // release semaphore slot
 
 			res, err := fetchOne(fetchOptions{
-				url:            rawURL,
-				browser:        flagBrowser,
-				headers:        flagHeaders,
-				timeout:        flagTimeout,
-				noCookies:      flagNoCookies,
-				cookieJarPath:  flagCookieJarPath,
-				verbose:        flagVerbose,
-				method:         flagMethod,
-				data:           flagData,
-				captchaService: flagCaptchaService,
-				captchaKey:     flagCaptchaKey,
+				url:       rawURL,
+				browser:   flagBrowser,
+				timeout:   flagTimeout,
+				noCookies: flagNoCookies,
+				verbose:   flagVerbose,
 			})
 			if err != nil {
 				results[idx] = fetchResult{
@@ -54,17 +48,6 @@ func runParallelFetch(urls []string) error {
 
 	wg.Wait()
 
-	// Determine output writer.
-	var writer io.Writer = os.Stdout
-	if flagOutputFile != "" {
-		f, err := os.Create(flagOutputFile)
-		if err != nil {
-			return fmt.Errorf("failed to create output file: %w", err)
-		}
-		defer f.Close()
-		writer = f
-	}
-
 	opts := outputOptions{
 		asJSON:       flagJSONOutput,
 		markdown:     flagMarkdown,
@@ -72,9 +55,9 @@ func runParallelFetch(urls []string) error {
 	}
 
 	if opts.asJSON {
-		formatParallelJSON(writer, results, opts)
+		formatParallelJSON(os.Stdout, results, opts)
 	} else {
-		formatParallelResults(writer, results, opts)
+		formatParallelResults(os.Stdout, results, opts)
 	}
 
 	return nil

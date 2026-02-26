@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,26 +11,19 @@ import (
 
 // Package-level flag variables shared across subcommands.
 var (
-	flagOutputFile     string
-	flagHeaders        []string
-	flagBrowser        string
-	flagJSONOutput     bool
-	flagFollowRedirs   bool
-	flagCookieJarPath  string
-	flagNoCookies      bool
-	flagTimeout        string
-	flagVerbose        bool
-	flagMethod         string
-	flagData           string
-	flagCaptchaService string
-	flagCaptchaKey     string
-	flagMarkdown       bool
-	flagMarkdownFull   bool
-	flagRaw              bool
-	flagMaxParallel      int
-	searchEngineName     string
-	searchMaxResults     int
-	linksFilter          string
+	flagBrowser      string
+	flagJSONOutput   bool
+	flagFollowRedirs bool
+	flagNoCookies    bool
+	flagTimeout      string
+	flagVerbose      bool
+	flagMarkdown     bool
+	flagMarkdownFull bool
+	flagRaw          bool
+	flagMaxParallel  int
+	searchEngineName string
+	searchMaxResults int
+	linksFilter      string
 )
 
 func main() {
@@ -60,19 +52,12 @@ Use subcommands (fetch, links) for other operations.`,
 
 	// Persistent flags — shared across all subcommands.
 	pf := rootCmd.PersistentFlags()
-	pf.StringVarP(&flagOutputFile, "output", "o", "", "write response to file")
-	pf.StringArrayVarP(&flagHeaders, "header", "H", nil, "add custom header (repeatable)")
 	pf.StringVarP(&flagBrowser, "browser", "b", "chrome", "browser to impersonate: chrome, firefox")
 	pf.BoolVarP(&flagJSONOutput, "json", "j", false, "output JSON with body, status, headers, cookies")
 	pf.BoolVarP(&flagFollowRedirs, "follow", "L", true, "follow redirects (up to 10)")
-	pf.StringVarP(&flagCookieJarPath, "cookie-jar", "c", "", "cookie jar file path (default: ~/.ghostfetch/cookies.json)")
 	pf.BoolVar(&flagNoCookies, "no-cookies", false, "don't load/save cookies")
 	pf.StringVarP(&flagTimeout, "timeout", "t", "30s", "request timeout")
 	pf.BoolVarP(&flagVerbose, "verbose", "v", false, "print request/response details to stderr")
-	pf.StringVarP(&flagMethod, "method", "X", "GET", "HTTP method")
-	pf.StringVarP(&flagData, "data", "d", "", "request body")
-	pf.StringVar(&flagCaptchaService, "captcha-service", "", "captcha service: 2captcha, anticaptcha")
-	pf.StringVar(&flagCaptchaKey, "captcha-key", "", "captcha service API key")
 	pf.BoolVarP(&flagMarkdown, "markdown", "m", false, "convert to markdown (reader mode: extracts main content)")
 	pf.BoolVar(&flagMarkdownFull, "markdown-full", false, "convert full page HTML to markdown")
 	pf.BoolVar(&flagRaw, "raw", false, "output raw HTML without any processing")
@@ -149,36 +134,20 @@ func runFetch(urls []string) error {
 	return runParallelFetch(urls)
 }
 
-// runSingleFetch fetches a single URL and writes the formatted output.
+// runSingleFetch fetches a single URL and writes the formatted output to stdout.
 func runSingleFetch(rawURL string) error {
 	result, err := fetchOne(fetchOptions{
-		url:            rawURL,
-		browser:        flagBrowser,
-		headers:        flagHeaders,
-		timeout:        flagTimeout,
-		noCookies:      flagNoCookies,
-		cookieJarPath:  flagCookieJarPath,
-		verbose:        flagVerbose,
-		method:         flagMethod,
-		data:           flagData,
-		captchaService: flagCaptchaService,
-		captchaKey:     flagCaptchaKey,
+		url:       rawURL,
+		browser:   flagBrowser,
+		timeout:   flagTimeout,
+		noCookies: flagNoCookies,
+		verbose:   flagVerbose,
 	})
 	if err != nil {
 		return err
 	}
 
-	// Write output.
-	writer := os.Stdout
-	if flagOutputFile != "" {
-		f, err := os.Create(flagOutputFile)
-		if err != nil {
-			return fmt.Errorf("failed to create output file: %w", err)
-		}
-		defer f.Close()
-		writer = f
-	}
-	formatOutput(writer, result.resp, result.Body, outputOptions{
+	formatOutput(os.Stdout, result.resp, result.Body, outputOptions{
 		asJSON:       flagJSONOutput,
 		markdown:     flagMarkdown,
 		markdownFull: flagMarkdownFull,
@@ -186,22 +155,6 @@ func runSingleFetch(rawURL string) error {
 	})
 
 	return nil
-}
-
-// parseHeaders splits raw header strings on the first ":" into key-value pairs.
-// Entries without a colon are skipped.
-func parseHeaders(raw []string) [][2]string {
-	var headers [][2]string
-	for _, h := range raw {
-		idx := strings.Index(h, ":")
-		if idx < 0 {
-			continue
-		}
-		key := strings.TrimSpace(h[:idx])
-		value := strings.TrimSpace(h[idx+1:])
-		headers = append(headers, [2]string{key, value})
-	}
-	return headers
 }
 
 // defaultCookieJarPath returns the default path for the persistent cookie jar:

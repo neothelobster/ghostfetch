@@ -2,7 +2,7 @@
 
 LLM-focused web search and fetch tool — invisible to bot detection.
 
-`ghostfetch` is a CLI tool designed for LLM agents and AI tools like OpenClaw, LangChain, AutoGPT, and custom agents that need to search and read the web. It bypasses Cloudflare, bot detection, and anti-scraping measures using browser-like TLS fingerprints — no headless browser required.
+`ghostfetch` is a read-only CLI tool designed for LLM agents and AI tools like OpenClaw, LangChain, AutoGPT, and custom agents that need to search and read the web. It bypasses Cloudflare, bot detection, and anti-scraping measures using browser-like TLS fingerprints — no headless browser required.
 
 ## Why ghostfetch?
 
@@ -14,6 +14,16 @@ LLMs need web access but most tools get blocked. `ghostfetch` solves this:
 - **Links** — Extract and filter links from any page
 - **Unblocked** — TLS fingerprint spoofing bypasses bot detection on most sites
 - **No browser** — Single binary, no Chromium, no Playwright, no Selenium
+
+## Security
+
+ghostfetch is designed to be safe for LLM agent use:
+
+- **Read-only** — GET requests only, no POST/PUT/DELETE, no request body
+- **Stdout-only** — All output goes to stdout, no file write capability
+- **No custom headers** — Cannot be used to exfiltrate data via HTTP headers
+- **No credentials in CLI** — Captcha services configured via environment variables only
+- **No arbitrary requests** — No custom HTTP methods or request bodies
 
 ## Install
 
@@ -110,9 +120,6 @@ ghostfetch outputs are designed to be consumed by LLMs:
 | `--markdown-full` | | Full page markdown |
 | `--json` | `-j` | JSON output with metadata |
 | `--raw` | | Raw HTML output |
-| `--header` | `-H` | Custom header (repeatable) |
-| `--method` | `-X` | HTTP method (default GET) |
-| `--data` | `-d` | Request body |
 | `--timeout` | `-t` | Request timeout (default 30s) |
 | `--max-parallel` | `-p` | Max parallel fetches (default 5) |
 | `--filter` | `-f` | Filter links by regex |
@@ -124,7 +131,6 @@ ghostfetch outputs are designed to be consumed by LLMs:
 - **TLS fingerprinting** — Uses [uTLS](https://github.com/refraction-networking/utls) to mimic Chrome 133 or Firefox 134 TLS handshakes
 - **HTTP/2** — Full HTTP/2 support with browser-like ALPN negotiation
 - **JS challenge solving** — Solves JavaScript challenges using an embedded JS runtime
-- **Captcha integration** — Supports 2captcha and anticaptcha services
 - **Persistent cookies** — Cookie jar persisted across requests
 - **Content decoding** — Handles gzip and brotli compression
 

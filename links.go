@@ -96,13 +96,11 @@ func formatLinks(links []pageLink) string {
 // the result as markdown text or JSON.
 func runLinks(rawURL string, filterPattern string) error {
 	result, err := fetchOne(fetchOptions{
-		url:           rawURL,
-		browser:       flagBrowser,
-		headers:       flagHeaders,
-		timeout:       flagTimeout,
-		noCookies:     flagNoCookies,
-		cookieJarPath: flagCookieJarPath,
-		verbose:       flagVerbose,
+		url:       rawURL,
+		browser:   flagBrowser,
+		timeout:   flagTimeout,
+		noCookies: flagNoCookies,
+		verbose:   flagVerbose,
 	})
 	if err != nil {
 		return err
@@ -125,23 +123,12 @@ func runLinks(rawURL string, filterPattern string) error {
 		links = filtered
 	}
 
-	// Determine output writer.
-	writer := os.Stdout
-	if flagOutputFile != "" {
-		f, err := os.Create(flagOutputFile)
-		if err != nil {
-			return fmt.Errorf("failed to create output file: %w", err)
-		}
-		defer f.Close()
-		writer = f
-	}
-
 	if flagJSONOutput {
-		enc := json.NewEncoder(writer)
+		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		return enc.Encode(links)
 	}
 
-	fmt.Fprint(writer, formatLinks(links))
+	fmt.Fprint(os.Stdout, formatLinks(links))
 	return nil
 }

@@ -11,18 +11,14 @@ import (
 )
 
 // fetchOptions holds the parameters for a single fetch operation.
+// This is a read-only tool: only GET requests, no custom headers,
+// no file writes, no request body — safe for LLM agent use.
 type fetchOptions struct {
-	url            string
-	browser        string
-	headers        []string
-	timeout        string
-	noCookies      bool
-	cookieJarPath  string
-	verbose        bool
-	method         string
-	data           string
-	captchaService string
-	captchaKey     string
+	url       string
+	browser   string
+	timeout   string
+	noCookies bool
+	verbose   bool
 }
 
 // fetchResult holds the outcome of a fetch operation.
@@ -82,20 +78,14 @@ func fetchOne(opts fetchOptions) (*fetchResult, error) {
 	// 6. Load cookie jar if cookies are enabled.
 	var jar *PersistentJar
 	if !opts.noCookies {
-		jarPath := opts.cookieJarPath
-		if jarPath == "" {
-			jarPath = defaultCookieJarPath()
-		}
+		jarPath := defaultCookieJarPath()
 		jar = newPersistentJar(jarPath)
 		if err := jar.Load(); err != nil {
 			return nil, fmt.Errorf("failed to load cookie jar: %w", err)
 		}
 	}
 
-	// 7. Parse custom headers.
-	extraHeaders := parseHeaders(opts.headers)
-
-	// 8. Build initial cookies from jar.
+	// 7. Build initial cookies from jar.
 	var cookies []*http.Cookie
 	if jar != nil {
 		if u, err := url.Parse(targetURL); err == nil {
@@ -107,18 +97,8 @@ func fetchOne(opts fetchOptions) (*fetchResult, error) {
 		fmt.Fprintf(os.Stderr, "[*] Fetching %s\n", targetURL)
 	}
 
-	// 9. Perform the fetch.
-	method := opts.method
-	if method == "" {
-		method = "GET"
-	}
-	var resp *http.Response
-	var body []byte
-	if opts.data != "" {
-		resp, body, err = doFetchWithBody(ctx, tr, profile, method, targetURL, extraHeaders, cookies, opts.data)
-	} else {
-		resp, body, err = doFetch(ctx, tr, profile, method, targetURL, extraHeaders, cookies)
-	}
+	// 8. Perform the fetch (read-only GET request, no custom headers).
+	resp, body, err := doFetch(ctx, tr, profile, "GET", targetURL, nil, cookies)
 	if err != nil {
 		return nil, fmt.Errorf("fetch failed: %w", err)
 	}
@@ -157,7 +137,7 @@ func fetchOne(opts fetchOptions) (*fetchResult, error) {
 				if opts.verbose {
 					fmt.Fprintf(os.Stderr, "[*] Retrying with solved JS cookie: %s\n", result.CookieName)
 				}
-				resp, body, err = doFetch(ctx, tr, profile, method, targetURL, extraHeaders, cookies)
+				resp, body, err = doFetch(ctx, tr, profile, "GET", targetURL, nil, cookies)
 				if err != nil {
 					return nil, fmt.Errorf("retry fetch failed: %w", err)
 				}
@@ -165,19 +145,12 @@ func fetchOne(opts fetchOptions) (*fetchResult, error) {
 		}
 	}
 
-	// 12. Handle captcha challenge.
+	// 12. Handle captcha challenge (env-based config only, no CLI flags).
 	if challenge == ChallengeCaptcha {
 		sitekey, captchaType := extractSitekey(body)
 		if sitekey != "" {
-			// Resolve captcha service and key from options or environment.
-			svc := opts.captchaService
-			if svc == "" {
-				svc = os.Getenv("BRWOSER_CAPTCHA_SERVICE")
-			}
-			key := opts.captchaKey
-			if key == "" {
-				key = os.Getenv("BRWOSER_CAPTCHA_KEY")
-			}
+			svc := os.Getenv("GHOSTFETCH_CAPTCHA_SERVICE")
+			key := os.Getenv("GHOSTFETCH_CAPTCHA_KEY")
 
 			if svc == "" || key == "" {
 				if opts.verbose {
@@ -198,7 +171,6 @@ func fetchOne(opts fetchOptions) (*fetchResult, error) {
 				if opts.verbose {
 					fmt.Fprintf(os.Stderr, "[*] Captcha solved, retrying fetch\n")
 				}
-				// Add captcha token as cookie and retry.
 				solvedCookie := &http.Cookie{
 					Name:  "cf_clearance",
 					Value: token,
@@ -211,7 +183,7 @@ func fetchOne(opts fetchOptions) (*fetchResult, error) {
 					}
 				}
 
-				resp, body, err = doFetch(ctx, tr, profile, method, targetURL, extraHeaders, cookies)
+				resp, body, err = doFetch(ctx, tr, profile, "GET", targetURL, nil, cookies)
 				if err != nil {
 					return nil, fmt.Errorf("retry fetch after captcha failed: %w", err)
 				}
