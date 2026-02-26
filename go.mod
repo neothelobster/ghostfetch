@@ -1,4 +1,4 @@
-module github.com/x/web_search
+module github.com/x/ghostfetch
 
 go 1.24.0
 

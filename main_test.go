@@ -90,7 +90,7 @@ func TestExtractScriptContent(t *testing.T) {
 func TestDefaultCookieJarPath(t *testing.T) {
 	t.Run("returns path under home directory", func(t *testing.T) {
 		path := defaultCookieJarPath()
-		if !strings.HasSuffix(path, "/.web_search/cookies.json") {
+		if !strings.HasSuffix(path, "/.ghostfetch/cookies.json") {
 			t.Fatalf("unexpected path: %s", path)
 		}
 	})

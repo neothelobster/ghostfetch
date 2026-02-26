@@ -36,12 +36,12 @@ var (
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "web_search [flags] <query>",
+		Use:   "ghostfetch [flags] <query>",
 		Short: "Search the web and fetch pages with bot detection bypass",
-		Long: `web_search performs web searches and fetches pages with browser-like
-TLS fingerprints, bypassing bot detection without a full browser.
+		Long: `ghostfetch searches and fetches the web like a ghost — browser-like
+TLS fingerprints, invisible to bot detection, no full browser needed.
 
-By default, running web_search with a query performs a web search.
+By default, running ghostfetch with a query performs a web search.
 Use subcommands (fetch, links) for other operations.`,
 		TraverseChildren: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -65,7 +65,7 @@ Use subcommands (fetch, links) for other operations.`,
 	pf.StringVarP(&flagBrowser, "browser", "b", "chrome", "browser to impersonate: chrome, firefox")
 	pf.BoolVarP(&flagJSONOutput, "json", "j", false, "output JSON with body, status, headers, cookies")
 	pf.BoolVarP(&flagFollowRedirs, "follow", "L", true, "follow redirects (up to 10)")
-	pf.StringVarP(&flagCookieJarPath, "cookie-jar", "c", "", "cookie jar file path (default: ~/.web_search/cookies.json)")
+	pf.StringVarP(&flagCookieJarPath, "cookie-jar", "c", "", "cookie jar file path (default: ~/.ghostfetch/cookies.json)")
 	pf.BoolVar(&flagNoCookies, "no-cookies", false, "don't load/save cookies")
 	pf.StringVarP(&flagTimeout, "timeout", "t", "30s", "request timeout")
 	pf.BoolVarP(&flagVerbose, "verbose", "v", false, "print request/response details to stderr")
@@ -205,13 +205,13 @@ func parseHeaders(raw []string) [][2]string {
 }
 
 // defaultCookieJarPath returns the default path for the persistent cookie jar:
-// ~/.web_search/cookies.json
+// ~/.ghostfetch/cookies.json
 func defaultCookieJarPath() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		home = "."
 	}
-	return filepath.Join(home, ".web_search", "cookies.json")
+	return filepath.Join(home, ".ghostfetch", "cookies.json")
 }
 
 // scriptTagRe matches <script ...>...</script> blocks, capturing the tag
