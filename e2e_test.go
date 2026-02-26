@@ -60,7 +60,7 @@ func TestE2EFetchHTTPBin(t *testing.T) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		extra := [][2]string{{"X-Custom-Test", "brwoser-test-value"}}
+		extra := [][2]string{{"X-Custom-Test", "web-search-test-value"}}
 		resp, body, err := doFetch(ctx, tr, profile, "GET", "https://httpbin.org/headers", extra, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -68,7 +68,7 @@ func TestE2EFetchHTTPBin(t *testing.T) {
 		if resp.StatusCode != 200 {
 			t.Fatalf("expected 200, got %d", resp.StatusCode)
 		}
-		if !strings.Contains(string(body), "brwoser-test-value") {
+		if !strings.Contains(string(body), "web-search-test-value") {
 			t.Fatalf("expected custom header in response, got: %s", body)
 		}
 	})

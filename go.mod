@@ -1,4 +1,4 @@
-module github.com/x/brwoser
+module github.com/x/web_search
 
 go 1.24.0
 

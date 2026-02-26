@@ -36,18 +36,25 @@ var (
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "brwoser [flags] [command]",
-		Short: "Fetch web pages like curl, but bypass bot detection",
-		Long: `brwoser fetches web pages with browser-like TLS fingerprints,
-solves JavaScript challenges, and handles captchas via external services.
-It bypasses bot detection without running a full browser.`,
+		Use:   "web_search [flags] <query>",
+		Short: "Search the web and fetch pages with bot detection bypass",
+		Long: `web_search performs web searches and fetches pages with browser-like
+TLS fingerprints, bypassing bot detection without a full browser.
+
+By default, running web_search with a query performs a web search.
+Use subcommands (fetch, links) for other operations.`,
 		TraverseChildren: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Bare `brwoser <url>` is a shortcut for `brwoser fetch <url>`.
-			if len(args) > 0 && looksLikeURL(args[0]) {
+			if len(args) == 0 {
+				return cmd.Help()
+			}
+			// If argument looks like a URL, fetch it.
+			if looksLikeURL(args[0]) {
 				return runFetch(args)
 			}
-			return cmd.Help()
+			// Otherwise, treat it as a search query.
+			query := strings.Join(args, " ")
+			return runSearch(query, searchEngineName, searchMaxResults)
 		},
 	}
 
@@ -58,7 +65,7 @@ It bypasses bot detection without running a full browser.`,
 	pf.StringVarP(&flagBrowser, "browser", "b", "chrome", "browser to impersonate: chrome, firefox")
 	pf.BoolVarP(&flagJSONOutput, "json", "j", false, "output JSON with body, status, headers, cookies")
 	pf.BoolVarP(&flagFollowRedirs, "follow", "L", true, "follow redirects (up to 10)")
-	pf.StringVarP(&flagCookieJarPath, "cookie-jar", "c", "", "cookie jar file path (default: ~/.brwoser/cookies.json)")
+	pf.StringVarP(&flagCookieJarPath, "cookie-jar", "c", "", "cookie jar file path (default: ~/.web_search/cookies.json)")
 	pf.BoolVar(&flagNoCookies, "no-cookies", false, "don't load/save cookies")
 	pf.StringVarP(&flagTimeout, "timeout", "t", "30s", "request timeout")
 	pf.BoolVarP(&flagVerbose, "verbose", "v", false, "print request/response details to stderr")
@@ -69,6 +76,10 @@ It bypasses bot detection without running a full browser.`,
 	pf.BoolVarP(&flagMarkdown, "markdown", "m", false, "convert to markdown (reader mode: extracts main content)")
 	pf.BoolVar(&flagMarkdownFull, "markdown-full", false, "convert full page HTML to markdown")
 	pf.BoolVar(&flagRaw, "raw", false, "output raw HTML without any processing")
+
+	// Search flags on root command (so `web_search -e brave "query"` works).
+	rootCmd.Flags().StringVarP(&searchEngineName, "engine", "e", "duckduckgo", "search engine: duckduckgo, bing, brave, google")
+	rootCmd.Flags().IntVarP(&searchMaxResults, "results", "n", 10, "number of results")
 
 	// Subcommands.
 	rootCmd.AddCommand(newFetchCmd())
@@ -194,13 +205,13 @@ func parseHeaders(raw []string) [][2]string {
 }
 
 // defaultCookieJarPath returns the default path for the persistent cookie jar:
-// ~/.brwoser/cookies.json
+// ~/.web_search/cookies.json
 func defaultCookieJarPath() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		home = "."
 	}
-	return filepath.Join(home, ".brwoser", "cookies.json")
+	return filepath.Join(home, ".web_search", "cookies.json")
 }
 
 // scriptTagRe matches <script ...>...</script> blocks, capturing the tag
