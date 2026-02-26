@@ -80,10 +80,11 @@ func TestParseBingResults(t *testing.T) {
 }
 
 func TestParseDuckDuckGoResults(t *testing.T) {
+	// Uses DDG redirect URLs to verify cleanDDGURL extracts real destinations.
 	htmlBody := `<html><body>
-<div class="result"><h2 class="result__title"><a class="result__a" href="https://example.com/ddg1">DDG First</a></h2>
+<div class="result"><h2 class="result__title"><a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fddg1&amp;rut=abc123">DDG First</a></h2>
 <a class="result__snippet">DDG first snippet</a></div>
-<div class="result"><h2 class="result__title"><a class="result__a" href="https://example.com/ddg2">DDG Second</a></h2>
+<div class="result"><h2 class="result__title"><a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fddg2&amp;rut=def456">DDG Second</a></h2>
 <a class="result__snippet">DDG second snippet</a></div>
 </body></html>`
 

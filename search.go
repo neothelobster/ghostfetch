@@ -279,7 +279,7 @@ func extractDuckDuckGoResult(n *html.Node) (searchResult, bool) {
 	var findResultA func(*html.Node)
 	findResultA = func(node *html.Node) {
 		if node.Type == html.ElementNode && node.Data == "a" && hasClass(node, "result__a") {
-			r.URL = getAttr(node, "href")
+			r.URL = cleanDDGURL(getAttr(node, "href"))
 			r.Title = textContent(node)
 			return
 		}
@@ -370,6 +370,25 @@ func extractBraveResult(n *html.Node) (searchResult, bool) {
 		return r, false
 	}
 	return r, true
+}
+
+// cleanDDGURL extracts the actual destination URL from a DuckDuckGo redirect URL.
+// DDG links look like "//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com&rut=...".
+func cleanDDGURL(rawURL string) string {
+	// Handle protocol-relative URLs.
+	if strings.HasPrefix(rawURL, "//") {
+		rawURL = "https:" + rawURL
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	if strings.Contains(parsed.Host, "duckduckgo.com") && parsed.Path == "/l/" {
+		if uddg := parsed.Query().Get("uddg"); uddg != "" {
+			return uddg
+		}
+	}
+	return rawURL
 }
 
 // hasClass checks if an HTML node has a specific class in its class attribute.
