@@ -29,11 +29,13 @@ func runParallelFetch(urls []string) error {
 			defer func() { <-sem }() // release semaphore slot
 
 			res, err := fetchOne(fetchOptions{
-				url:       rawURL,
-				browser:   flagBrowser,
-				timeout:   flagTimeout,
-				noCookies: flagNoCookies,
-				verbose:   flagVerbose,
+				url:            rawURL,
+				browser:        flagBrowser,
+				timeout:        flagTimeout,
+				noCookies:      flagNoCookies,
+				verbose:        flagVerbose,
+				captchaService: flagCaptchaService,
+				captchaKey:     flagCaptchaKey,
 			})
 			if err != nil {
 				results[idx] = fetchResult{

@@ -11,19 +11,21 @@ import (
 
 // Package-level flag variables shared across subcommands.
 var (
-	flagBrowser      string
-	flagJSONOutput   bool
-	flagFollowRedirs bool
-	flagNoCookies    bool
-	flagTimeout      string
-	flagVerbose      bool
-	flagMarkdown     bool
-	flagMarkdownFull bool
-	flagRaw          bool
-	flagMaxParallel  int
-	searchEngineName string
-	searchMaxResults int
-	linksFilter      string
+	flagBrowser        string
+	flagJSONOutput     bool
+	flagFollowRedirs   bool
+	flagNoCookies      bool
+	flagTimeout        string
+	flagVerbose        bool
+	flagCaptchaService string
+	flagCaptchaKey     string
+	flagMarkdown       bool
+	flagMarkdownFull   bool
+	flagRaw            bool
+	flagMaxParallel    int
+	searchEngineName   string
+	searchMaxResults   int
+	linksFilter        string
 )
 
 func main() {
@@ -58,6 +60,8 @@ Use subcommands (fetch, links) for other operations.`,
 	pf.BoolVar(&flagNoCookies, "no-cookies", false, "don't load/save cookies")
 	pf.StringVarP(&flagTimeout, "timeout", "t", "30s", "request timeout")
 	pf.BoolVarP(&flagVerbose, "verbose", "v", false, "print request/response details to stderr")
+	pf.StringVar(&flagCaptchaService, "captcha-service", "", "captcha service: 2captcha, anticaptcha")
+	pf.StringVar(&flagCaptchaKey, "captcha-key", "", "captcha service API key")
 	pf.BoolVarP(&flagMarkdown, "markdown", "m", false, "convert to markdown (reader mode: extracts main content)")
 	pf.BoolVar(&flagMarkdownFull, "markdown-full", false, "convert full page HTML to markdown")
 	pf.BoolVar(&flagRaw, "raw", false, "output raw HTML without any processing")
@@ -137,11 +141,13 @@ func runFetch(urls []string) error {
 // runSingleFetch fetches a single URL and writes the formatted output to stdout.
 func runSingleFetch(rawURL string) error {
 	result, err := fetchOne(fetchOptions{
-		url:       rawURL,
-		browser:   flagBrowser,
-		timeout:   flagTimeout,
-		noCookies: flagNoCookies,
-		verbose:   flagVerbose,
+		url:            rawURL,
+		browser:        flagBrowser,
+		timeout:        flagTimeout,
+		noCookies:      flagNoCookies,
+		verbose:        flagVerbose,
+		captchaService: flagCaptchaService,
+		captchaKey:     flagCaptchaKey,
 	})
 	if err != nil {
 		return err

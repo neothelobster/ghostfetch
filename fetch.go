@@ -14,11 +14,13 @@ import (
 // This is a read-only tool: only GET requests, no custom headers,
 // no file writes, no request body — safe for LLM agent use.
 type fetchOptions struct {
-	url       string
-	browser   string
-	timeout   string
-	noCookies bool
-	verbose   bool
+	url            string
+	browser        string
+	timeout        string
+	noCookies      bool
+	verbose        bool
+	captchaService string
+	captchaKey     string
 }
 
 // fetchResult holds the outcome of a fetch operation.
@@ -145,12 +147,18 @@ func fetchOne(opts fetchOptions) (*fetchResult, error) {
 		}
 	}
 
-	// 12. Handle captcha challenge (env-based config only, no CLI flags).
+	// 12. Handle captcha challenge.
 	if challenge == ChallengeCaptcha {
 		sitekey, captchaType := extractSitekey(body)
 		if sitekey != "" {
-			svc := os.Getenv("GHOSTFETCH_CAPTCHA_SERVICE")
-			key := os.Getenv("GHOSTFETCH_CAPTCHA_KEY")
+			svc := opts.captchaService
+			if svc == "" {
+				svc = os.Getenv("GHOSTFETCH_CAPTCHA_SERVICE")
+			}
+			key := opts.captchaKey
+			if key == "" {
+				key = os.Getenv("GHOSTFETCH_CAPTCHA_KEY")
+			}
 
 			if svc == "" || key == "" {
 				if opts.verbose {

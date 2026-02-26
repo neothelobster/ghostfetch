@@ -450,11 +450,13 @@ func runSearch(query string, engineName string, maxResults int) error {
 	searchURL := eng.SearchURL(query, maxResults)
 
 	result, err := fetchOne(fetchOptions{
-		url:       searchURL,
-		browser:   flagBrowser,
-		timeout:   flagTimeout,
-		noCookies: flagNoCookies,
-		verbose:   flagVerbose,
+		url:            searchURL,
+		browser:        flagBrowser,
+		timeout:        flagTimeout,
+		noCookies:      flagNoCookies,
+		verbose:        flagVerbose,
+		captchaService: flagCaptchaService,
+		captchaKey:     flagCaptchaKey,
 	})
 	if err != nil {
 		return fmt.Errorf("search fetch failed: %w", err)

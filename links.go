@@ -96,11 +96,13 @@ func formatLinks(links []pageLink) string {
 // the result as markdown text or JSON.
 func runLinks(rawURL string, filterPattern string) error {
 	result, err := fetchOne(fetchOptions{
-		url:       rawURL,
-		browser:   flagBrowser,
-		timeout:   flagTimeout,
-		noCookies: flagNoCookies,
-		verbose:   flagVerbose,
+		url:            rawURL,
+		browser:        flagBrowser,
+		timeout:        flagTimeout,
+		noCookies:      flagNoCookies,
+		verbose:        flagVerbose,
+		captchaService: flagCaptchaService,
+		captchaKey:     flagCaptchaKey,
 	})
 	if err != nil {
 		return err
